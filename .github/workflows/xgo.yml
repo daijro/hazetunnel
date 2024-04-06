@@ -1,0 +1,71 @@
+name: Release Tags
+
+on:
+  release:
+    types: [created]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Fetch Version from Tag
+        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+
+      # Build and release CFFI artifacts
+
+      - name: Build CFFI
+        uses: crazy-max/ghaction-xgo@v3
+        with:
+          xgo_version: latest
+          go_version: latest
+          dest: cffi_dist
+          prefix: hazetunnel-api-${{ env.VERSION }}
+          targets: "*/*"
+          v: true
+          race: false
+          ldflags: -s -w
+          buildmode: c-shared
+          trimpath: true
+          working_dir: hazetunnel
+
+      - name: Upload CFFI Build Artifacts to Workflow
+        uses: actions/upload-artifact@v3
+        with:
+          name: cffi-build-artifacts-${{ env.VERSION }}
+          path: hazetunnel/cffi_dist/**
+
+      - name: Upload Release Assets with action-gh-release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: hazetunnel/cffi_dist/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Build CLI artifacts
+
+      - name: Build CLI
+        uses: crazy-max/ghaction-xgo@v3
+        with:
+          xgo_version: latest
+          go_version: latest
+          dest: cli_dist
+          prefix: hazetunnel-cli-${{ env.VERSION }}
+          targets: "*/*"
+          v: true
+          race: false
+          ldflags: -s -w
+          buildmode: default
+          trimpath: true
+          working_dir: hazetunnel
+
+      - name: Upload CLI Build Artifacts to Workflow
+        uses: actions/upload-artifact@v3
+        with:
+          name: cli-build-artifacts-${{ env.VERSION }}
+          path: hazetunnel/cli_dist/**
+
+permissions:
+  contents: write
