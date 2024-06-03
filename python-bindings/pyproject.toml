@@ -1,0 +1,35 @@
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry]
+name = "hazetunnel"
+version = "1.0.0"
+description = "Mitm proxy that defends against TLS and JS worker fingerprinting."
+authors = ["daijro <daijro.dev@gmail.com>"]
+license = "MIT"
+readme = "README.md"
+repository = "https://github.com/daijro/hazetunnel"
+keywords = [
+    "tls",
+    "golang",
+    "networking",
+    "proxy",
+    "mitm",
+    "injector",
+    "playwright",
+]
+classifiers = [
+    "Topic :: Security",
+    "Topic :: Internet :: WWW/HTTP",
+    "Topic :: Internet :: Proxy Servers",
+    "Topic :: System :: Networking :: Monitoring",
+    "Topic :: Software Development :: Testing",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+
+
+[tool.poetry.dependencies]
+python = "^3.8"
+click = "*"
+httpx = "*"

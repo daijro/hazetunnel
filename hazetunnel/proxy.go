@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"sync"
 
 	cflog "github.com/cloudflare/cfssl/log"
 	"github.com/elazarl/goproxy"
@@ -16,15 +17,31 @@ type contextKey string
 
 const payloadKey contextKey = "payload"
 
-func launch() {
-	if !Flags.Verbose {
-		cflog.Level = cflog.LevelError
+// Globals
+var (
+	server    *http.Server
+	cancel    context.CancelFunc
+	serverMux sync.Mutex
+)
+
+func initServer(addr string, handler http.Handler) {
+	serverMux.Lock()
+	defer serverMux.Unlock()
+
+	if server != nil {
+		log.Println("Server is already running")
+		return
 	}
-	loadCA()
 
-	proxy := goproxy.NewProxyHttpServer()
-	proxy.Verbose = Flags.Verbose
+	_, cancel = context.WithCancel(context.Background())
 
+	server = &http.Server{
+		Addr:    addr,
+		Handler: handler,
+	}
+}
+
+func setupProxy(proxy *goproxy.ProxyHttpServer) {
 	proxy.OnRequest().HandleConnect(goproxy.AlwaysMitm)
 
 	proxy.OnRequest().DoFunc(
@@ -34,10 +51,6 @@ func launch() {
 
 			var upstreamProxy *url.URL
 
-			// // Confirm that the payload header was passed
-			// if proxyConfig.payload == "" {
-			//     return req, missingParameterResponse(req, ctx, PayloadHeader)
-			// }
 			// Extract ClientHello from the User-Agent header
 			if len(req.Header["User-Agent"]) == 0 {
 				return req, missingParameterResponse(req, ctx, "User-Agent")
@@ -86,8 +99,24 @@ func launch() {
 
 	// Inject payload code into responses
 	proxy.OnResponse().DoFunc(PayloadInjector)
+}
 
-	listenAddr := Flags.Addr + ":" + Flags.Port
-	log.Println("hazetunnel listening at " + listenAddr)
-	log.Fatal(http.ListenAndServe(listenAddr, proxy))
+// Launches the server
+func Launch() {
+	if !Flags.Verbose {
+		cflog.Level = cflog.LevelError
+	}
+	loadCA()
+
+	proxy := goproxy.NewProxyHttpServer()
+	proxy.Verbose = Flags.Verbose
+
+	setupProxy(proxy)
+	initServer(Flags.Addr+":"+Flags.Port, proxy)
+
+	// Launch server
+	log.Println("Hazetunnel listening at", server.Addr)
+	if err := server.ListenAndServe(); err != http.ErrServerClosed {
+		log.Fatalf("HTTP server ListenAndServe: %v", err)
+	}
 }

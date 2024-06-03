@@ -11,16 +11,34 @@ import (
 
 	json "github.com/goccy/go-json"
 )
+import "context"
 
-//export LaunchServer
-func LaunchServer(data string) {
-	// Launch from cffi
+//export StartServer
+func StartServer(data string) {
+	// Launch server from cffi
 	err := json.Unmarshal([]byte(data), &Flags)
 	if err != nil {
 		log.Fatal(err)
 		return
 	}
-	go launch()
+	go Launch()
+}
+
+//export ShutdownServer
+func ShutdownServer() {
+	// Kill server from cffi
+	serverMux.Lock()
+	defer serverMux.Unlock()
+
+	if server != nil {
+		log.Println("Shutting down the server...")
+		cancel() // Cancel the context, which should trigger graceful shutdown
+
+		if err := server.Shutdown(context.Background()); err != nil {
+			log.Printf("Failed to shutdown the server gracefully: %v", err)
+		}
+		server = nil // Set server to nil after shutdown
+	}
 }
 
 func main() {
@@ -31,5 +49,5 @@ func main() {
 	flag.StringVar(&Flags.Key, "key", "key.pem", "TLS CA key (generated automatically if not present)")
 	flag.BoolVar(&Flags.Verbose, "verbose", false, "Enable verbose logging")
 	flag.Parse()
-	launch()
+	Launch()
 }
