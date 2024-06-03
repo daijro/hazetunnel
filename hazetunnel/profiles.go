@@ -8,9 +8,10 @@ import (
 	"github.com/mileusna/useragent"
 )
 
+// Predefined dictionary with browser versions and their corresponding utls values.
+// Updated as of utls v1.6.6.
+// Extracted from here: https://github.com/refraction-networking/utls/blob/master/u_common.go#L573
 var utlsDict = map[string]map[int]string{
-	// Predefined dictionary with browser versions and their corresponding utls values.
-	// Updated as of utls v1.6.1
 	"Firefox": {
 		-1:  "55",
 		56:  "56",
@@ -46,15 +47,15 @@ var utlsDict = map[string]map[int]string{
 		-1: "11",
 	},
 	"Edge": {
-		-1:  "85",
-		106: "106",
+		-1: "85",
+		// 106: "106", incompatible with utls
 	},
 	"Safari": {
 		-1: "16.0",
 	},
 	"360Browser": {
 		-1: "7.5",
-		11: "11.0",
+		// 11: "11.0", incompatible with utls
 	},
 	"QQBrowser": {
 		-1: "11.1",

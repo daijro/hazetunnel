@@ -20,5 +20,10 @@
 # Go workspace file
 go.work
 
+# Python
+__pycache__
+dist
+*.pyc
+
 *.pem
 credentials
