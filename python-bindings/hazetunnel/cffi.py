@@ -202,11 +202,15 @@ class Library:
 
 
 # Maintain a universal library instance
-library: Optional[Library] = None
+_library: Optional[Library] = None
+
+
+def library() -> Optional[Library]:
+    return _library
 
 
 def get_library() -> Library:
-    global library
-    if library is None:
-        library = Library()
-    return library
+    global _library
+    if _library is None:
+        _library = Library()
+    return _library

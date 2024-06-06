@@ -1,5 +1,7 @@
 # Python Usage
 
+## Usage
+
 Hazetunnel is designed to run globally:
 
 ```py
@@ -16,7 +18,7 @@ requests.get(
     verify=hazetunnel.cert()
 )
 ...
-hazetunnel.stop()
+hazetunnel.kill()
 ```
 
 Although, Hazetunnel may also run in a context manager:
@@ -37,5 +39,41 @@ with HazeTunnel as proxy:
 ...
 ```
 
----
+<hr width=70>
 
+## CLI
+
+Download the latest version of the API:
+
+```sh
+python -m hazetunnel fetch
+```
+
+Remove all files before uninstalling
+
+```sh
+python -m hazetunnel remove
+```
+
+Run the MITM proxy:
+
+```sh
+python -m hazetunnel run -p 8080 --verbose
+```
+
+### All commands
+
+```sh
+Usage: python -m hazetunnel [OPTIONS] COMMAND [ARGS]...
+
+Options:
+  --help  Show this message and exit.
+
+Commands:
+  fetch    Fetch the latest version of hazetunnel-api
+  remove   Remove all library files
+  run      Run the MITM proxy
+  version  Display the current version
+```
+
+---

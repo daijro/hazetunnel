@@ -4,7 +4,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
 name = "hazetunnel"
-version = "1.0.0"
+version = "1.1.0"
 description = "Mitm proxy that defends against TLS and JS worker fingerprinting."
 authors = ["daijro <daijro.dev@gmail.com>"]
 license = "MIT"

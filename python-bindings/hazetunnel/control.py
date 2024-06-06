@@ -1,7 +1,7 @@
 from pathlib import Path
 from typing import Optional, Union
 
-from .cffi import get_library, root_dir
+from .cffi import get_library, library, root_dir
 
 """
 Hazetunnel is designed to run globally.
@@ -19,16 +19,23 @@ requests.get(
     verify=hazetunnel.cert()
 ).text
 ...
-hazetunnel.stop()
+hazetunnel.kill()
 """
 
 
 def launch(
     port: Optional[int] = None,
-    cert: Union[str, Path] = root_dir / "bin" / "cert.pem",
-    key: Union[str, Path] = root_dir / "bin" / "key.pem",
+    cert: Optional[Union[str, Path]] = None,
+    key: Optional[Union[str, Path]] = None,
     verbose: bool = False,
 ) -> None:
+    """
+    Creates a new instance of the hazetunnel server
+    """
+    if not key:
+        key = root_dir / "bin" / "key.pem"
+    if not cert:
+        cert = root_dir / "bin" / "cert.pem"
     lib = get_library()
     if lib._started:
         raise RuntimeError("Server is already running.")
@@ -36,24 +43,50 @@ def launch(
 
 
 def port() -> int:
+    """
+    Returns the port the server is running on
+    """
     return get_library().port
 
 
 def url() -> str:
+    """
+    Returns the URL of the server
+    """
     return f"http://localhost:{port()}"
 
 
 def cert() -> Optional[str]:
+    """
+    Returns the certificate file path
+    """
     if pair := get_library()._cert_key_pair:
         return pair[0]
 
 
 def key() -> Optional[str]:
+    """
+    Returns the key file path
+    """
     if pair := get_library()._cert_key_pair:
         return pair[1]
 
 
-def stop() -> None:
+def is_running() -> bool:
+    """
+    Returns whether the server is running.
+    Does NOT spawn a new server if one isn't running.
+    """
+    lib = library()
+    if not lib:
+        return False
+    return lib._started
+
+
+def kill() -> None:
+    """
+    Stops the server
+    """
     lib = get_library()
     if not lib._started:
         raise RuntimeError("Server is not running.")
@@ -88,7 +121,7 @@ class Context:
         return self
 
     def __exit__(self, *_) -> None:
-        stop()
+        kill()
 
     @property
     def url(self) -> str:
