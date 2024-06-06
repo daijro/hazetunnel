@@ -19,7 +19,7 @@ requests.get(
     verify=hazetunnel.cert()
 ).text
 ...
-hazetunnel.kill()
+hazetunnel.stop()
 """
 
 
@@ -42,24 +42,35 @@ def launch(
     get_library().launch(port=port, cert=str(cert), key=str(key), verbose=verbose)
 
 
-def port() -> int:
+# Alias
+_launch = launch
+
+
+def port(launch: bool = True) -> int:
     """
     Returns the port the server is running on
     """
+    if launch and not is_running():
+        _launch()
+    else:
+        assert_running()
     return get_library().port
 
 
-def url() -> str:
+def url(launch: bool = True) -> str:
     """
     Returns the URL of the server
     """
-    return f"http://localhost:{port()}"
+    if launch and not is_running():
+        _launch()
+    return f"http://127.0.0.1:{port(launch=launch)}"
 
 
 def cert() -> Optional[str]:
     """
     Returns the certificate file path
     """
+    assert_running()
     if pair := get_library()._cert_key_pair:
         return pair[0]
 
@@ -68,6 +79,7 @@ def key() -> Optional[str]:
     """
     Returns the key file path
     """
+    assert_running()
     if pair := get_library()._cert_key_pair:
         return pair[1]
 
@@ -83,13 +95,19 @@ def is_running() -> bool:
     return lib._started
 
 
-def kill() -> None:
+def assert_running() -> None:
+    """
+    Raises a RuntimeError if the server is not running.
+    """
+    if not is_running():
+        raise RuntimeError("Server is not running.")
+
+
+def stop() -> None:
     """
     Stops the server
     """
-    lib = get_library()
-    if not lib._started:
-        raise RuntimeError("Server is not running.")
+    assert_running()
     get_library().stop_server()
 
 
@@ -121,7 +139,7 @@ class Context:
         return self
 
     def __exit__(self, *_) -> None:
-        kill()
+        stop()
 
     @property
     def url(self) -> str:

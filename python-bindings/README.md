@@ -18,7 +18,7 @@ requests.get(
     verify=hazetunnel.cert()
 )
 ...
-hazetunnel.kill()
+hazetunnel.stop()
 ```
 
 Although, Hazetunnel may also run in a context manager:

@@ -15,7 +15,7 @@ from typing import Optional
 
 import click
 
-from hazetunnel import kill, launch
+from hazetunnel import launch, stop
 from hazetunnel.__version__ import BRIDGE_VERSION
 from hazetunnel.cffi import LibraryManager, root_dir
 
@@ -209,7 +209,7 @@ def run(port: int, cert: Optional[str], key: Optional[str], verbose: bool) -> No
     except KeyboardInterrupt:
         pass
     finally:
-        kill()
+        stop()
 
 
 if __name__ == '__main__':
