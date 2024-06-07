@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	cflog "github.com/cloudflare/cfssl/log"
+	"github.com/cristalhq/base64"
 	"github.com/elazarl/goproxy"
 	utls "github.com/refraction-networking/utls"
 	sf "gitlab.torproject.org/tpo/anti-censorship/pluggable-transports/snowflake/v2/common/utls"
@@ -64,7 +65,21 @@ func setupProxy(proxy *goproxy.ProxyHttpServer) {
 			}
 
 			// Store the payload code in the request's context
-			ctx.Req = req.WithContext(context.WithValue(ctx.Req.Context(), payloadKey, proxyConfig.payload))
+			if proxyConfig.isBase64 == "1" && proxyConfig.payload != "" {
+				decodedPayload, err := base64.StdEncoding.DecodeString(proxyConfig.payload)
+				if err != nil {
+					return req, invalidBase64Response(req, ctx)
+				}
+				proxyConfig.payload = string(decodedPayload)
+			}
+
+			ctx.Req = req.WithContext(
+				context.WithValue(
+					ctx.Req.Context(),
+					payloadKey,
+					proxyConfig.payload,
+				),
+			)
 
 			// If a proxy header was passed, set it to upstreamProxy
 			if len(proxyConfig.upstreamProxy) > 0 {

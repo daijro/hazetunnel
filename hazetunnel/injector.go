@@ -23,7 +23,7 @@ func PayloadInjector(resp *http.Response, ctx *goproxy.ProxyCtx) *http.Response 
 		return resp
 	}
 	if payload == "" {
-		ctx.Warnf("Payload code is empty, x-mitm-payload header was not passed.")
+		ctx.Warnf("Payload code is empty. Payload header was not passed.")
 		return resp
 	}
 

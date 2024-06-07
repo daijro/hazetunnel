@@ -39,6 +39,7 @@ Add the following headers to each request to the proxy:
 | Header            | Description                                                                      | Example                                       |
 | ----------------- | -------------------------------------------------------------------------------- | --------------------------------------------- |
 | `x-mitm-payload`  | Inject a JavaScript payload into the response.                                   | `alert('Hello world');`                       |
+| `x-mitm-isbase64` | Set to `1` to pass the payload as a Base64 encoded string.                       | `1`                                           |
 | `x-mitm-upstream` | Optionally forward the request to the upstream proxy. Must be socks5 or socks5h. | `socks5://user:pass@pro.proxyvendor.com:7000` |
 
 ### Curl
