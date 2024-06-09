@@ -19,11 +19,11 @@ func PayloadInjector(resp *http.Response, ctx *goproxy.ProxyCtx) *http.Response 
 	// Retrieve the payload code from the request's context
 	payload, ok := ctx.Req.Context().Value(payloadKey).(string)
 	if !ok {
-		ctx.Warnf("Payload code not found in request context")
+		ctx.Warnf("Error was returned. Skipping payload injection...")
 		return resp
 	}
 	if payload == "" {
-		ctx.Warnf("Payload code is empty. Payload header was not passed.")
+		ctx.Logf("No payload was passed")
 		return resp
 	}
 

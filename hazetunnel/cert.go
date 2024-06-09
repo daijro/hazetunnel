@@ -5,11 +5,17 @@ import (
 	"crypto/x509"
 	"log"
 	"os"
+	"sync"
 
 	"github.com/elazarl/goproxy"
 
 	cfsr "github.com/cloudflare/cfssl/csr"
 	"github.com/cloudflare/cfssl/initca"
+)
+
+var (
+	caLoaded  = false
+	caLoadMux sync.Mutex
 )
 
 func fileExists(filename string) bool {
@@ -28,31 +34,48 @@ func setGoproxyCA(tlsCert tls.Certificate) {
 	goproxy.MitmConnect = &goproxy.ConnectAction{Action: goproxy.ConnectMitm, TLSConfig: goproxy.TLSConfigFromCA(&tlsCert)}
 	goproxy.HTTPMitmConnect = &goproxy.ConnectAction{Action: goproxy.ConnectHTTPMitm, TLSConfig: goproxy.TLSConfigFromCA(&tlsCert)}
 	goproxy.RejectConnect = &goproxy.ConnectAction{Action: goproxy.ConnectReject, TLSConfig: goproxy.TLSConfigFromCA(&tlsCert)}
+	caLoaded = true
 }
 
 func loadCA() {
-	if fileExists(Flags.Cert) && fileExists(Flags.Key) {
-		tlsCert, err := tls.LoadX509KeyPair(Flags.Cert, Flags.Key)
+	if caLoaded {
+		return // Skip if cert already loaded
+	}
+	caLoadMux.Lock()
+	defer caLoadMux.Unlock()
+
+	// Set default values of Config.Cert and Config.Key
+	if Config.Cert == "" {
+		Config.Cert = "cert.pem"
+	}
+	if Config.Key == "" {
+		Config.Key = "key.pem"
+	}
+
+	// If both Config.Cert and Config.Key exist, load them
+	if fileExists(Config.Cert) && fileExists(Config.Key) {
+		tlsCert, err := tls.LoadX509KeyPair(Config.Cert, Config.Key)
 		if err != nil {
 			log.Fatal("Unable to load CA certificate and key", err)
 		}
-
 		setGoproxyCA(tlsCert)
-	} else {
-		if fileExists(Flags.Cert) {
-			log.Fatalf("CA certificate exists, but found no corresponding key at %s", Flags.Key)
-		} else if fileExists(Flags.Key) {
-			log.Fatalf("CA key exists, but found no corresponding certificate at %s", Flags.Cert)
-		}
-
-		log.Println("No CA found, generating certificate and key")
-		tlsCert, err := generateCA()
-		if err != nil {
-			log.Fatal("Unable to generate CA certificate and key", err)
-		}
-
-		setGoproxyCA(tlsCert)
+		return
 	}
+
+	// If only only file exists, warn the user
+	if fileExists(Config.Cert) {
+		log.Fatalf("CA certificate exists, but found no corresponding key at %s", Config.Key)
+	} else if fileExists(Config.Key) {
+		log.Fatalf("CA key exists, but found no corresponding certificate at %s", Config.Cert)
+	}
+
+	// Generate new CA files
+	log.Println("No CA found, generating certificate and key")
+	tlsCert, err := generateCA()
+	if err != nil {
+		log.Fatal("Unable to generate CA certificate and key", err)
+	}
+	setGoproxyCA(tlsCert)
 }
 
 func generateCA() (tls.Certificate, error) {
@@ -66,7 +89,7 @@ func generateCA() (tls.Certificate, error) {
 		return tls.Certificate{}, err
 	}
 
-	caOut, err := os.Create(Flags.Cert)
+	caOut, err := os.Create(Config.Cert)
 	if err != nil {
 		return tls.Certificate{}, err
 	}
@@ -76,7 +99,7 @@ func generateCA() (tls.Certificate, error) {
 		return tls.Certificate{}, err
 	}
 
-	keyOut, err := os.OpenFile(Flags.Key, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
+	keyOut, err := os.OpenFile(Config.Key, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
 	if err != nil {
 		return tls.Certificate{}, err
 	}

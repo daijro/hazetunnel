@@ -1,2 +1,2 @@
 # Supported binary version
-BRIDGE_VERSION = '1.'
+BRIDGE_VERSION = '2.'

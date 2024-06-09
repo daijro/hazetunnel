@@ -12,7 +12,7 @@ from contextlib import closing
 from pathlib import Path
 from platform import machine
 from sys import platform
-from typing import Optional, Tuple
+from typing import Dict, Optional, Tuple
 
 import click
 from httpx import get, stream
@@ -156,30 +156,22 @@ def gostring(s: str) -> GoString:
 
 class Library:
     def __init__(self) -> None:
-        # load the shared package
+        # Load the shared package
         self.library: ctypes.CDLL = LibraryManager.load_library()
-        self._started: bool = False
-        self._cert_key_pair: Optional[Tuple[str, str]] = None
 
-        # extract the exposed functions
+        # Global config data
+        self._key_pair: Tuple[str, str]
+        self._verbose: bool = False
+
+        # Extract the exposed functions
         self.library.StartServer.argtypes = [GoString]
-        self.library.ShutdownServer.argtypes = []
+        self.library.ShutdownServer.argtypes = [GoString]
+        self.library.SetVerbose.argtypes = [GoString]
+        self.library.SetKeyPair.argtypes = [GoString]
 
-    def launch(self, port: Optional[int] = None, **kwargs) -> None:
-        # spawn the server
-        self.port = port or self.get_open_port()
-        if not self.port:
-            raise OSError('Could not find an open port.')
-        kwargs['port'] = str(self.port)
-        # set the cert and key pair
-        self._cert_key_pair = (kwargs['cert'], kwargs['key'])
-
-        self.start_server(json.dumps(kwargs))
-
-    def destroy_session(self, session_id: str):
-        # destroy a session by its passed session_id
-        ref: GoString = gostring(session_id)
-        self.library.DestroySession(ref)
+        # Set the default key pair paths
+        bin_path = root_dir / "bin"
+        self.key_pair = (str(bin_path / "key.pem"), str(bin_path / "cert.pem"))
 
     @staticmethod
     def get_open_port() -> int:
@@ -188,25 +180,45 @@ class Library:
             s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             return s.getsockname()[1]
 
-    def start_server(self, data: str):
-        # launch the server
-        ref: GoString = gostring(data)
+    def start_server(self, options: Dict[str, str]):
+        # Launch the server
+        ref: GoString = gostring(json.dumps(options))
         self.library.StartServer(ref)
-        self._started = True
 
-    def stop_server(self):
-        # destroy the server
-        self.library.ShutdownServer()
-        self._started = False
-        self._cert_key_pair = None
+    def stop_server(self, id: str):
+        # Stop the server
+        ref: GoString = gostring(id)
+        self.library.ShutdownServer(ref)
+
+    """
+    Global config data
+    """
+
+    @property
+    def verbose(self):
+        return self._verbose
+
+    @verbose.setter
+    def verbose(self, verbose: bool):
+        # Set the verbose level
+        self._verbose = verbose
+        ref: GoString = gostring(json.dumps({"verbose": verbose}))
+        self.library.SetVerbose(ref)
+
+    @property
+    def key_pair(self):
+        return self._key_pair
+
+    @key_pair.setter
+    def key_pair(self, key_pair: Tuple[str, str]):
+        # Set the cert and key pair
+        cert, key = self._key_pair = key_pair
+        ref: GoString = gostring(json.dumps({"cert": cert, "key": key}))
+        self.library.SetKeyPair(ref)
 
 
 # Maintain a universal library instance
 _library: Optional[Library] = None
-
-
-def library() -> Optional[Library]:
-    return _library
 
 
 def get_library() -> Library:

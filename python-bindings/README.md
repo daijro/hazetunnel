@@ -2,41 +2,53 @@
 
 ## Usage
 
-Hazetunnel is designed to run globally:
-
-```py
-import hazetunnel
-hazetunnel.launch()
-...
-requests.get(
-    url='https://tls.peet.ws/api/clean',
-    headers={
-        **HeaderGenerator().generate(browser='chrome'),
-        'x-mitm-payload': 'alert("hi");'
-    },
-    proxies={'https': hazetunnel.url()},
-    verify=hazetunnel.cert()
-)
-...
-hazetunnel.stop()
-```
-
-Although, Hazetunnel may also run in a context manager:
-
 ```py
 from hazetunnel import HazeTunnel
+from browserforge.headers import HeaderGenerator
 ...
-with HazeTunnel as proxy:
-    requests.get(
-        url='https://tls.peet.ws/api/clean',
-        headers={
-            **HeaderGenerator().generate(browser='chrome'),
-            'x-mitm-payload': 'alert("hi");'
-        },
-        proxies={'https': proxy.url},
-        verify=proxy.cert
-    )
-...
+# Initialize the proxy
+proxy = HazeTunnel(port='8080', payload='alert("Hello World!");')
+proxy.launch()
+# Send the request
+requests.get(
+    url='https://example.com',
+    headers=HeaderGenerator().generate(browser='chrome'),
+    proxies={'https': proxy.url},
+    verify=proxy.cert
+).text
+# Stop the proxy
+proxy.stop()
+```
+
+<details>
+
+  <summary>
+    HazeTunnel parameters
+  </summary>
+
+```
+Parameters:
+    port (Optional[str]): Specify a port to listen on. Default is random.
+    payload (Optional[str]): Payload to inject into responses
+    user_agent (Optional[str]): Optionally override all User-Agent headers
+    upstream_proxy (Optional[str]): Optionally forward requests to an upstream proxy
+```
+
+</details>
+
+### Using a context manager
+
+A context manager will automatically close the server when not needed anymore.
+
+```py
+with HazeTunnel(port='8080', payload='alert("Hello World!");') as proxy:
+  # Send the request
+  requests.get(
+      url='https://example.com',
+      headers=HeaderGenerator().generate(browser='chrome'),
+      proxies={'https': proxy.url},
+      verify=proxy.cert
+  ).text
 ```
 
 <hr width=70>
@@ -75,5 +87,7 @@ Commands:
   run      Run the MITM proxy
   version  Display the current version
 ```
+
+### See [here](https://github.com/daijro/hazetunnel) for more information and examples.
 
 ---

@@ -14,10 +14,10 @@ from pathlib import Path
 from typing import Optional
 
 import click
-
-from hazetunnel import launch, stop
 from hazetunnel.__version__ import BRIDGE_VERSION
 from hazetunnel.cffi import LibraryManager, root_dir
+
+from hazetunnel import HazeTunnel, set_key_pair, set_verbose
 
 
 def rprint(*a, **k):
@@ -192,24 +192,43 @@ def version() -> None:
 
 
 @cli.command(name='run')
-@click.option('-v', '--verbose', is_flag=True, help="Enable verbose output")
+@click.option('-p', '--port', type=str, default='8080', help="Port to use. Default: 8080.")
+@click.option('--user_agent', type=str, default=None, help="Override User-Agent headers.")
+@click.option('--payload', type=str, default=None, help="Payload to inject into responses.")
 @click.option(
-    '-p', '--port', type=int, default=8080, help="Port to run the proxy on. Default: 8080"
+    '--upstream_proxy', type=str, default=None, help="Forward requests to an upstream proxy."
 )
-@click.option('--cert', type=str, default=None, help="Path to the certificate file. Optional.")
-@click.option('--key', type=str, default=None, help="Path to the key file. Optional.")
-def run(port: int, cert: Optional[str], key: Optional[str], verbose: bool) -> None:
+@click.option('--cert', type=str, default=None, help="Path to the certificate file.")
+@click.option('--key', type=str, default=None, help="Path to the key file.")
+@click.option('-v', '--verbose', is_flag=True, help="Enable verbose output.")
+def run(
+    port: str,
+    user_agent: str,
+    payload: str,
+    upstream_proxy: str,
+    cert: str,
+    key: str,
+    verbose: bool,
+) -> None:
     """
     Run the MITM proxy
     """
-    launch(port=port, cert=cert, key=key, verbose=verbose)
+    if cert or key:
+        set_key_pair(cert, key)
+    if verbose:
+        set_verbose(True)
+    server = HazeTunnel(
+        port=port, payload=payload, user_agent=user_agent, upstream_proxy=upstream_proxy
+    )
     # wait forever until keyboard interrupt
+    server.launch()
+    print('Server has started! Press Ctrl-C to quit.')
     try:
         time.sleep(1e6)
     except KeyboardInterrupt:
         pass
     finally:
-        stop()
+        server.stop()
 
 
 if __name__ == '__main__':

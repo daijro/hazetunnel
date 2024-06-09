@@ -1,128 +1,18 @@
 from pathlib import Path
 from typing import Optional, Union
+from uuid import uuid4
 
-from .cffi import get_library, library, root_dir
-
-"""
-Hazetunnel is designed to run globally.
-
-import hazetunnel
-hazetunnel.launch()
-...
-requests.get(
-    url='https://tls.peet.ws/api/clean',
-    headers={
-        **HeaderGenerator().generate(browser='chrome'),
-        'x-mitm-payload': 'alert("hi");'
-    },
-    proxies={'https': hazetunnel.url()},
-    verify=hazetunnel.cert()
-).text
-...
-hazetunnel.stop()
-"""
-
-
-def launch(
-    port: Optional[int] = None,
-    cert: Optional[Union[str, Path]] = None,
-    key: Optional[Union[str, Path]] = None,
-    verbose: bool = False,
-) -> None:
-    """
-    Creates a new instance of the hazetunnel server
-    """
-    if not key:
-        key = root_dir / "bin" / "key.pem"
-    if not cert:
-        cert = root_dir / "bin" / "cert.pem"
-    lib = get_library()
-    if lib._started:
-        raise RuntimeError("Server is already running.")
-    get_library().launch(port=port, cert=str(cert), key=str(key), verbose=verbose)
-
-
-# Alias
-_launch = launch
-
-
-def port(launch: bool = True) -> int:
-    """
-    Returns the port the server is running on
-    """
-    if launch and not is_running():
-        _launch()
-    else:
-        assert_running()
-    return get_library().port
-
-
-def url(launch: bool = True) -> str:
-    """
-    Returns the URL of the server
-    """
-    if launch and not is_running():
-        _launch()
-    return f"http://127.0.0.1:{port(launch=launch)}"
-
-
-def cert() -> Optional[str]:
-    """
-    Returns the certificate file path
-    """
-    assert_running()
-    if pair := get_library()._cert_key_pair:
-        return pair[0]
-
-
-def key() -> Optional[str]:
-    """
-    Returns the key file path
-    """
-    assert_running()
-    if pair := get_library()._cert_key_pair:
-        return pair[1]
-
-
-def is_running() -> bool:
-    """
-    Returns whether the server is running.
-    Does NOT spawn a new server if one isn't running.
-    """
-    lib = library()
-    if not lib:
-        return False
-    return lib._started
-
-
-def assert_running() -> None:
-    """
-    Raises a RuntimeError if the server is not running.
-    """
-    if not is_running():
-        raise RuntimeError("Server is not running.")
-
-
-def stop() -> None:
-    """
-    Stops the server
-    """
-    assert_running()
-    get_library().stop_server()
-
+from .cffi import get_library
 
 """
 Hazetunnel may also run in a context manager.
 
 from hazetunnel import HazeTunnel
 ...
-with HazeTunnel as proxy:
+with HazeTunnel(port='8080', payload='alert("Hello World!");') as proxy:
     requests.get(
         url='https://tls.peet.ws/api/clean',
-        headers={
-            **HeaderGenerator().generate(browser='chrome'),
-            'x-mitm-payload': 'alert("hi");'
-        },
+        headers=HeaderGenerator().generate(browser='chrome'),
         proxies={'https': proxy.url},
         verify=proxy.cert
     ).text
@@ -130,32 +20,160 @@ with HazeTunnel as proxy:
 """
 
 
-class Context:
-    def __init__(self, **kwargs) -> None:
-        self.kwargs = kwargs
+class HazeTunnel:
+    def __init__(
+        self,
+        port: Optional[str] = None,
+        payload: Optional[str] = None,
+        user_agent: Optional[str] = None,
+        upstream_proxy: Optional[str] = None,
+    ) -> None:
+        """
+        HazeTunnel constructor
 
-    def __enter__(self) -> "Context":
-        launch(**self.kwargs)
-        return self
+        Parameters:
+            port (Optional[str]): Specify a port to listen on. Default is random.
+            payload (Optional[str]): Payload to inject into responses
+            user_agent (Optional[str]): Override user agent
+            upstream_proxy (Optional[str]): Optionally forward requests to an upstream proxy
+        """
+        # Generate a ID
+        self.id = str(uuid4())
 
-    def __exit__(self, *_) -> None:
-        stop()
+        # Set options
+        self.options = {
+            "port": port or '',
+            "payload": payload or '',
+            "user_agent": user_agent or '',
+            "upstream_proxy": upstream_proxy or '',
+            "id": self.id,
+        }
+
+        self.lib = get_library()
+        self.is_running = False
+
+    """
+    Start/stopping the server
+    """
+
+    def launch(self) -> None:
+        """
+        Launch the server
+        """
+        # Kill if running already
+        if self.is_running:
+            raise RuntimeError("Server is already running.")
+        # Generate a port if one wasn't passed
+        if not self.options['port']:
+            self.options['port'] = str(self.lib.get_open_port())
+
+        self.lib.start_server(self.options)
+        self.is_running = True
+
+    def stop(self) -> None:
+        """
+        Stop the server
+        """
+        if not self.is_running:
+            raise RuntimeError("Server is not running.")
+        self.lib.stop_server(self.id)
+        self.is_running = False
+
+    """
+    Configuration
+    """
 
     @property
     def url(self) -> str:
-        return url()
+        """
+        Returns the URL of the server
+        """
+        return f"http://127.0.0.1:{self.options['port']}"
 
     @property
-    def port(self) -> int:
-        return port()
+    def cert(self) -> str:
+        """
+        Returns the path to the server's certificate
+        """
+        return self.lib.key_pair[0]
+
+    @cert.setter
+    def cert(self, _) -> None:
+        raise NotImplementedError(
+            "Setting the certificate path is not supported. "
+            "This must be done with the hazetunnel.set_curt(path) method"
+        )
 
     @property
-    def cert(self) -> Optional[str]:
-        return cert()
+    def key(self) -> str:
+        """
+        Returns the path to the server's key
+        """
+        return self.lib.key_pair[1]
+
+    @key.setter
+    def key(self, _) -> None:
+        raise NotImplementedError(
+            "Setting the certificate path is not supported. "
+            "This must be done with the hazetunnel.set_key(path) method"
+        )
 
     @property
-    def key(self) -> Optional[str]:
-        return key()
+    def verbose(self) -> bool:
+        """
+        Returns the verbosity of the server logs
+        """
+        return self.lib.verbose
+
+    @verbose.setter
+    def verbose(self, option: bool) -> None:
+        """
+        Set the verbosity of the logs
+        """
+        self.lib.verbose = option
+
+    """
+    Context manager methods
+    """
+
+    def __enter__(self) -> "HazeTunnel":
+        self.launch()
+        return self
+
+    def __exit__(self, *_) -> None:
+        self.stop()
 
 
-HazeTunnel: Context = Context()
+"""
+Global config setters
+Note: These MUST be done before starting the HazeTunnel instance.
+"""
+
+
+def set_key_pair(
+    cert_path: Optional[Union[str, Path]], key_path: Optional[Union[str, Path]] = ''
+) -> None:
+    """
+    Set the certificate path
+    """
+    if not (cert_path or key_path):
+        raise ValueError("Either cert and key must be set")
+    lib = get_library()
+    lib.key_pair = (str(cert_path), str(key_path))
+
+
+def set_verbose(option: bool) -> None:
+    """
+    Set the logging level to verbose
+    """
+    lib = get_library()
+    lib.verbose = option
+
+
+"""
+Global config getters
+"""
+
+cert = lambda: get_library().key_pair[0]
+key = lambda: get_library().key_pair[1]
+verbose = lambda: get_library().verbose
