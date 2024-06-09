@@ -60,7 +60,7 @@ class HazeTunnel:
         """
         Launch the server
         """
-        # Kill if running already
+        # Raise error if running already
         if self.is_running:
             raise RuntimeError("Server is already running.")
         # Generate a port if one wasn't passed
@@ -88,6 +88,9 @@ class HazeTunnel:
         """
         Returns the URL of the server
         """
+        # Raise error if not running
+        if not self.is_running:
+            raise RuntimeError("Server is not running.")
         return f"http://127.0.0.1:{self.options['port']}"
 
     @property
