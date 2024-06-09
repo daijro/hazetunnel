@@ -44,28 +44,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # Build CLI artifacts
-
-      - name: Build CLI
-        uses: crazy-max/ghaction-xgo@v3
-        with:
-          xgo_version: latest
-          go_version: latest
-          dest: cli_dist
-          prefix: hazetunnel-cli-${{ env.VERSION }}
-          targets: "*/*"
-          v: true
-          race: false
-          ldflags: -s -w
-          buildmode: default
-          trimpath: true
-          working_dir: hazetunnel
-
-      - name: Upload CLI Build Artifacts to Workflow
-        uses: actions/upload-artifact@v3
-        with:
-          name: cli-build-artifacts-${{ env.VERSION }}
-          path: hazetunnel/cli_dist/**
 
 permissions:
   contents: write
