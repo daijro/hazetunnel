@@ -1,4 +1,4 @@
-package main
+package api
 
 /*
 #include <stdlib.h>
@@ -27,7 +27,7 @@ func StartServer(data string) {
 		log.Fatal(err)
 		return
 	}
-	updateVerbosity()
+	UpdateVerbosity()
 	go Launch(&Flags)
 }
 
@@ -42,7 +42,7 @@ func SetVerbose(data string) {
 	}
 	// Update verbose level
 	Config.Verbose = verbose.Verbose
-	updateVerbosity() // Change immediately
+	UpdateVerbosity() // Change immediately
 }
 
 //export SetKeyPair

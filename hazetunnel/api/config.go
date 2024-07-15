@@ -1,4 +1,4 @@
-package main
+package api
 
 import (
 	cflog "github.com/cloudflare/cfssl/log"
@@ -36,7 +36,7 @@ type KeyPairSetting struct {
 	Key  string `json:"key"`
 }
 
-func updateVerbosity() {
+func UpdateVerbosity() {
 	// Update the verbose level
 	if Config.Verbose {
 		cflog.Level = cflog.LevelInfo
